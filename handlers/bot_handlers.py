@@ -9,7 +9,6 @@ from config import OPENWEATHER_API_KEY, WEATHER_URL
 from database.database import get_default_city, set_default_city, create_connection
 from filters.filters import bot
 from PIL import Image
-
 from handlers.messages import description_mapping, weather_images
 from keyboards.keyboards import inline_keyboard
 from states.states import BotForm

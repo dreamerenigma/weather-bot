@@ -8,5 +8,5 @@ HOST = config("HOST")
 PORT = int(config("PORT"))
 BASE_URL = config("BASE_URL")
 WEBHOOK_PATH = f'/{BOT_TOKEN}'
-ENVIRONMENT = config("ENVIRONMENT", "development")
+ENVIRONMENT = config("ENVIRONMENT", "production")
 USE_WEBHOOK = config("USE_WEBHOOK", cast=bool, default=False)
