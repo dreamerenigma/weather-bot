@@ -32,8 +32,13 @@ async def start_handler(message: types.Message):
 
         await message.answer_photo(
             photo=photo,
-            caption="Привет! Я бот, который расскажет тебе о погоде.\nВыберите действие:",
-            reply_markup=inline_keyboard(user_id=user_id)
+            caption=(
+                "Привет! Я бот, который расскажет тебе о погоде.\n"
+                "Выберите действие: \n\n"
+                "Этот бот был создан с помощью [@DialogiusBot](tg://user?id=7605038110)"
+            ).replace("!", "\\!").replace(".", "\\."),
+            reply_markup=inline_keyboard(user_id=user_id),
+            parse_mode='MarkdownV2'
         )
 
     except FileNotFoundError:
@@ -155,10 +160,17 @@ def normalize_description(description):
     return normalized.lower()
 
 
+def escape_markdown_v2(text):
+    special_characters = ["_", "*", "[", "]", "(", ")", "~", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"]
+    for char in special_characters:
+        text = text.replace(char, f'\\{char}')
+    return text
+
+
 async def send_weather_by_city(bot, message, city, state: FSMContext):
     weather = get_weather(city)
 
-    print(weather)
+    print(f"Weather data received: {weather}")
 
     if weather:
         weather_description = normalize_description(weather.get('description', ''))
@@ -167,37 +179,43 @@ async def send_weather_by_city(bot, message, city, state: FSMContext):
         mapped_description = description_mapping.get(weather_description.lower(), None)
         image_path = weather_images.get(mapped_description, None)
 
-        response_message = (
-            f"Погода в городе *{weather.get('city')}*:\n"
-            f"Температура: {weather.get('temperature')}°C\n"
-            f"Описание: {weather_description}\n"
-            f"Влажность: {weather.get('humidity')}%\n"
-            f"Давление: {weather.get('pressure')} мм рт. ст.\n"
-            f"Скорость ветра: {weather.get('wind_speed')} м/с\n"
-            f"Облачность: {weather.get('clouds')}%\n"
+        response_message = escape_markdown_v2(
+            (
+                f"Погода в городе {weather.get('city')}:\n"
+                f"Температура: {weather.get('temperature')}°C\n"
+                f"Описание: {weather_description}\n"
+                f"Влажность: {weather.get('humidity')}%\n"
+                f"Давление: {weather.get('pressure')} мм рт. ст.\n"
+                f"Скорость ветра: {weather.get('wind_speed')} м/с\n"
+                f"Облачность: {weather.get('clouds')}%\n"
+            )
         )
 
         if image_path:
-            with Image.open(image_path) as img:
-                img = img.resize((180, 180))
-                img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='PNG')
-                img_byte_arr.seek(0)
+            try:
+                with Image.open(image_path) as img:
+                    img = img.resize((200, 200))
+                    img_byte_arr = io.BytesIO()
+                    img.save(img_byte_arr, format='PNG')
+                    img_byte_arr.seek(0)
 
-                input_file = BufferedInputFile(img_byte_arr.getvalue(), filename="weather-bot-logo.png")
+                    input_file = BufferedInputFile(img_byte_arr.getvalue(), filename="weather-bot-logo.png")
 
-                await bot.send_photo(
-                    chat_id=message.chat.id,
-                    photo=input_file,
-                    caption=response_message,
-                    parse_mode='MarkdownV2'
-                )
-
+                    await bot.send_photo(
+                        chat_id=message.chat.id,
+                        photo=input_file,
+                        caption=response_message,
+                        parse_mode='MarkdownV2'
+                    )
+            except Exception as e:
+                print(f"Error sending image: {e}")
+                await bot.send_message(message.chat.id, "Не удалось отправить изображение.")
+        else:
+            await bot.send_message(message.chat.id, response_message, parse_mode='MarkdownV2')
     else:
         response_message = 'Извините, я не смог найти информацию о погоде для этого города. Пожалуйста, введите название города снова:'
         await bot.send_message(message.chat.id, response_message)
         await state.set_state(BotForm.waiting_for_city)
-        return
 
 
 def send_weather(message: types.Message):
